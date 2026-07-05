@@ -232,9 +232,13 @@ class NeuroClipApp(ctk.CTk):
                 self._set_status(f"Ошибка анализа: {message}", theme.DANGER)
             self.after(0, _finish)
 
+        def on_warning(message: str) -> None:
+            self.after(0, lambda: self._set_status(f"⚠️ {message}", theme.TEXT_MUTED))
+
         self._pipeline.run(
             self.current_video_path,
             on_progress=on_progress, on_event=on_event, on_done=on_done, on_error=on_error,
+            on_warning=on_warning,
         )
 
     def _on_event_selected(self, timestamp: float) -> None:

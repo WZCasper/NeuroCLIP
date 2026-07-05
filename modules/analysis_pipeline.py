@@ -13,14 +13,19 @@
 при целевой частоте анализа 6 fps это всего 21 600 проходов).
 """
 
+import os
 import threading
 from typing import Callable, List
 
 import cv2
 
+from config import FACE_LANDMARKER_MODEL_PATH
 from modules.detectors.base import DetectionEvent
+from modules.detectors.explosion_detector import ExplosionDetector
+from modules.detectors.eye_contact_detector import EyeContactDetector
 from modules.detectors.hp_detector import LowHPDetector
 from modules.detectors.killfeed_detector import KillfeedDetector
+from modules.detectors.scope_detector import ScopeDetector
 from state import AISettings
 
 TARGET_ANALYSIS_FPS = 6.0
@@ -32,15 +37,36 @@ class AnalysisPipeline:
     def __init__(self, settings: AISettings):
         self._settings = settings
         self._cancelled = False
+        self._eye_contact_detector = None  # закрывается отдельно (держит ресурсы MediaPipe)
 
     def cancel(self) -> None:
         self._cancelled = True
 
-    def _build_detectors(self) -> list:
-        return [
+    def _build_detectors(self, on_warning: Callable[[str], None]) -> list:
+        detectors = [
             LowHPDetector(sensitivity=self._settings.low_hp_sensitivity),
             KillfeedDetector(sensitivity=self._settings.killfeed_sensitivity),
+            ExplosionDetector(sensitivity=self._settings.explosion_sensitivity),
+            ScopeDetector(sensitivity=self._settings.explosion_sensitivity),
         ]
+
+        if os.path.exists(FACE_LANDMARKER_MODEL_PATH):
+            try:
+                self._eye_contact_detector = EyeContactDetector(
+                    model_path=FACE_LANDMARKER_MODEL_PATH,
+                    sensitivity=self._settings.eye_contact_sensitivity,
+                )
+                detectors.append(self._eye_contact_detector)
+            except Exception as exc:  # ImportError (нет mediapipe) или ошибка модели
+                on_warning(f"Детектор зрительного контакта отключён: {exc}")
+        else:
+            on_warning(
+                "Детектор зрительного контакта пропущен: не найден файл "
+                f"{FACE_LANDMARKER_MODEL_PATH} (см. eye_contact_detector.py, "
+                "как его скачать)."
+            )
+
+        return detectors
 
     def run(
         self,
@@ -49,6 +75,7 @@ class AnalysisPipeline:
         on_event: Callable[[DetectionEvent], None],
         on_done: Callable[[List[DetectionEvent]], None],
         on_error: Callable[[str], None],
+        on_warning: Callable[[str], None] = lambda msg: None,
     ) -> None:
         """
         Запускает анализ в фоновом потоке.
@@ -56,6 +83,9 @@ class AnalysisPipeline:
         Колбэки вызываются ИЗ ФОНОВОГО ПОТОКА — если внутри них обновляются
         виджеты Tkinter, вызывающая сторона обязана сама передать управление
         в главный поток (например, через widget.after(0, ...)).
+        on_warning — некритичные предупреждения (например, детектор
+        зрительного контакта пропущен из-за отсутствия файла модели);
+        анализ продолжается остальными детекторами.
         """
 
         def _worker() -> None:
@@ -69,7 +99,7 @@ class AnalysisPipeline:
                 total_frames = max(int(capture.get(cv2.CAP_PROP_FRAME_COUNT)), 1)
                 frame_skip = max(int(round(fps / TARGET_ANALYSIS_FPS)), 1)
 
-                detectors = self._build_detectors()
+                detectors = self._build_detectors(on_warning)
                 all_events: List[DetectionEvent] = []
                 frame_index = 0
 
@@ -96,5 +126,7 @@ class AnalysisPipeline:
                 on_done(all_events)
             finally:
                 capture.release()
+                if self._eye_contact_detector is not None:
+                    self._eye_contact_detector.close()
 
         threading.Thread(target=_worker, daemon=True).start()

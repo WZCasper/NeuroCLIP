@@ -21,3 +21,7 @@ SQUAD_MEMBERS: list[str] = ["Arkhangel", "Kobrel", "Maestro", "Opornik", "Boom"]
 
 APP_NAME = "NeuroClip"
 APP_VERSION = "0.1.0-alpha"
+
+# Путь к файлу модели MediaPipe FaceLandmarker (см. eye_contact_detector.py
+# для инструкции по скачиванию — библиотека не скачивает его сама).
+FACE_LANDMARKER_MODEL_PATH = "assets/models/face_landmarker.task"
