@@ -20,11 +20,14 @@ from typing import Callable, List
 import cv2
 
 from config import FACE_LANDMARKER_MODEL_PATH
+from modules.audio_extractor import AudioExtractionError, extract_audio
+from modules.detectors.audio_peak_detector import AudioPeakDetector
 from modules.detectors.base import DetectionEvent
 from modules.detectors.explosion_detector import ExplosionDetector
 from modules.detectors.eye_contact_detector import EyeContactDetector
 from modules.detectors.hp_detector import LowHPDetector
 from modules.detectors.killfeed_detector import KillfeedDetector
+from modules.detectors.laughter_detector import LaughterDetector
 from modules.detectors.scope_detector import ScopeDetector
 from state import AISettings
 
@@ -76,6 +79,8 @@ class AnalysisPipeline:
         on_done: Callable[[List[DetectionEvent]], None],
         on_error: Callable[[str], None],
         on_warning: Callable[[str], None] = lambda msg: None,
+        on_status: Callable[[str], None] = lambda msg: None,
+        enable_laughter: bool = False,
     ) -> None:
         """
         Запускает анализ в фоновом потоке.
@@ -83,9 +88,12 @@ class AnalysisPipeline:
         Колбэки вызываются ИЗ ФОНОВОГО ПОТОКА — если внутри них обновляются
         виджеты Tkinter, вызывающая сторона обязана сама передать управление
         в главный поток (например, через widget.after(0, ...)).
-        on_warning — некритичные предупреждения (например, детектор
-        зрительного контакта пропущен из-за отсутствия файла модели);
-        анализ продолжается остальными детекторами.
+        on_warning — некритичные предупреждения (детектор пропущен, но анализ
+        продолжается остальными). on_status — информационный текст о текущем
+        этапе (не проблема, просто "что сейчас происходит").
+        enable_laughter — детектор смеха через Whisper ОТКЛЮЧЁН по умолчанию:
+        он на порядок медленнее остальных (полная транскрипция аудио) и
+        не является надёжным (см. честное примечание в laughter_detector.py).
         """
 
         def _worker() -> None:
@@ -94,15 +102,18 @@ class AnalysisPipeline:
                 on_error(f"Не удалось открыть видео для анализа: {video_path}")
                 return
 
+            eye_contact_detector_ref = None
             try:
                 fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
                 total_frames = max(int(capture.get(cv2.CAP_PROP_FRAME_COUNT)), 1)
                 frame_skip = max(int(round(fps / TARGET_ANALYSIS_FPS)), 1)
 
                 detectors = self._build_detectors(on_warning)
+                eye_contact_detector_ref = self._eye_contact_detector
                 all_events: List[DetectionEvent] = []
                 frame_index = 0
 
+                on_status("Анализирую видео...")
                 while True:
                     if self._cancelled:
                         return
@@ -117,16 +128,61 @@ class AnalysisPipeline:
                             for event in detector.analyze_frame(frame, timestamp):
                                 all_events.append(event)
                                 on_event(event)
-                        on_progress(min(frame_index / total_frames, 1.0))
+                        # Видео — первые 70% общего прогресса, аудио-фазы — оставшиеся 30%
+                        on_progress(min(frame_index / total_frames, 1.0) * 0.7)
 
                     frame_index += 1
+
+                if self._cancelled:
+                    return
+
+                self._run_audio_phase(video_path, all_events, on_event, on_warning,
+                                       on_status, on_progress, enable_laughter)
 
                 all_events.sort(key=lambda e: e.timestamp)
                 on_progress(1.0)
                 on_done(all_events)
             finally:
                 capture.release()
-                if self._eye_contact_detector is not None:
-                    self._eye_contact_detector.close()
+                if eye_contact_detector_ref is not None:
+                    eye_contact_detector_ref.close()
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _run_audio_phase(
+        self, video_path: str, all_events: List[DetectionEvent],
+        on_event: Callable[[DetectionEvent], None], on_warning: Callable[[str], None],
+        on_status: Callable[[str], None], on_progress: Callable[[float], None],
+        enable_laughter: bool,
+    ) -> None:
+        on_status("Извлекаю аудиодорожку...")
+        try:
+            wav_path = extract_audio(video_path)
+        except AudioExtractionError as exc:
+            on_warning(f"Аудио-анализ пропущен: {exc}")
+            return
+
+        try:
+            on_progress(0.75)
+            on_status("Ищу резкие звуковые пики...")
+            peak_detector = AudioPeakDetector(sensitivity=self._settings.audio_peak_sensitivity)
+            for event in peak_detector.analyze_audio(wav_path):
+                all_events.append(event)
+                on_event(event)
+            on_progress(0.85)
+
+            if enable_laughter:
+                on_status("Распознаю речь (Whisper) — это медленнее остального...")
+                try:
+                    laughter_detector = LaughterDetector(model_size="base")
+                    for event in laughter_detector.analyze_audio(wav_path):
+                        all_events.append(event)
+                        on_event(event)
+                except ImportError as exc:
+                    on_warning(f"Детектор смеха отключён: {exc}")
+                except Exception as exc:  # модель Whisper не скачалась, ошибка транскрипции и т.п.
+                    on_warning(f"Детектор смеха пропущен из-за ошибки: {exc}")
+            on_progress(0.95)
+        finally:
+            if os.path.exists(wav_path):
+                os.remove(wav_path)

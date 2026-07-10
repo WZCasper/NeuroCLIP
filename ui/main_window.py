@@ -99,6 +99,16 @@ class NeuroClipApp(ctk.CTk):
         for attr_name, label_text in _SLIDER_DEFINITIONS:
             row = self._add_sensitivity_slider(sidebar, row, attr_name, label_text)
 
+        self._laughter_toggle_var = ctk.BooleanVar(value=False)
+        self._laughter_toggle = ctk.CTkCheckBox(
+            sidebar, text="😂 Распознавать смех (Whisper, медленно)",
+            variable=self._laughter_toggle_var,
+            text_color=theme.TEXT_PRIMARY, font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=12),
+            fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_PURPLE, border_color=theme.TEXT_MUTED,
+        )
+        self._laughter_toggle.grid(row=row, column=0, sticky="w", padx=20, pady=(0, 16))
+        row += 1
+
         self._add_separator(sidebar, row=row)
         row += 1
 
@@ -235,10 +245,14 @@ class NeuroClipApp(ctk.CTk):
         def on_warning(message: str) -> None:
             self.after(0, lambda: self._set_status(f"⚠️ {message}", theme.TEXT_MUTED))
 
+        def on_status(message: str) -> None:
+            self.after(0, lambda: self._set_status(message, theme.ACCENT_CYAN))
+
         self._pipeline.run(
             self.current_video_path,
             on_progress=on_progress, on_event=on_event, on_done=on_done, on_error=on_error,
-            on_warning=on_warning,
+            on_warning=on_warning, on_status=on_status,
+            enable_laughter=self._laughter_toggle_var.get(),
         )
 
     def _on_event_selected(self, timestamp: float) -> None:
