@@ -37,3 +37,10 @@ FONT_FAMILY_UI = "Segoe UI"
 # (assets/fonts/RussoOne-Regular.ttf, лицензия SIL OFL 1.1), поэтому рендерится
 # одинаково на любой ОС независимо от того, какие шрифты установлены у пользователя.
 BRAND_FONT_FILENAME = "RussoOne-Regular.ttf"
+
+
+def hex_to_rgb(hex_color: str) -> tuple:
+    """Конвертирует '#RRGGBB' в (R, G, B) — нужно там, где работаем с Pillow
+    напрямую (виджеты CustomTkinter сами понимают hex-строки, а PIL — нет)."""
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))

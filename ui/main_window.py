@@ -1,14 +1,17 @@
 """Главное окно приложения NeuroClip: сборка всех компонентов интерфейса."""
 
 import os
+import threading
 from tkinter import filedialog
-from typing import Optional
+from typing import List, Optional
 
 import customtkinter as ctk
 
 from config import APP_NAME, APP_VERSION
 from modules.analysis_pipeline import AnalysisPipeline
 from modules.detectors.base import DetectionEvent
+from modules.montage_builder import MontageError, build_montage, events_to_segments
+from modules.preview_generator import PreviewError, build_preview
 from state import AISettings
 from ui import theme
 from ui.analysis_panel import AnalysisPanel
@@ -40,6 +43,7 @@ class NeuroClipApp(ctk.CTk):
         self.settings = AISettings()
         self.current_video_path: Optional[str] = None
         self._pipeline: Optional[AnalysisPipeline] = None
+        self._found_events: List[DetectionEvent] = []
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -85,17 +89,34 @@ class NeuroClipApp(ctk.CTk):
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
             height=42, state="disabled",
         )
-        self._analyze_button.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self._analyze_button.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 12))
 
-        self._add_separator(sidebar, row=3)
+        self._montage_button = ctk.CTkButton(
+            sidebar, text="🎬 Собрать монтаж", command=self._on_build_montage,
+            fg_color=theme.ACCENT_MAGENTA, hover_color=theme.ACCENT_PURPLE, text_color="#050505",
+            font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
+            height=42, state="disabled",
+        )
+        self._montage_button.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 8))
+
+        self._preview_button = ctk.CTkButton(
+            sidebar, text="🖼 Создать превью", command=self._on_build_preview,
+            fg_color="transparent", hover_color=theme.ACCENT_PURPLE, border_width=2,
+            border_color=theme.ACCENT_MAGENTA, text_color=theme.ACCENT_MAGENTA,
+            font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
+            height=42, state="disabled",
+        )
+        self._preview_button.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 20))
+
+        self._add_separator(sidebar, row=5)
 
         sliders_title = ctk.CTkLabel(
             sidebar, text="ЧУВСТВИТЕЛЬНОСТЬ ИИ", text_color=theme.TEXT_MUTED,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=12, weight="bold"),
         )
-        sliders_title.grid(row=4, column=0, sticky="w", padx=20, pady=(0, 8))
+        sliders_title.grid(row=6, column=0, sticky="w", padx=20, pady=(0, 8))
 
-        row = 5
+        row = 7
         for attr_name, label_text in _SLIDER_DEFINITIONS:
             row = self._add_sensitivity_slider(sidebar, row, attr_name, label_text)
 
@@ -189,6 +210,9 @@ class NeuroClipApp(ctk.CTk):
         if self.video_player.load_video(filepath):
             self.current_video_path = filepath
             self._analyze_button.configure(state="normal")
+            self._found_events = []
+            self._montage_button.configure(state="disabled")
+            self._preview_button.configure(state="disabled")
             self.analysis_panel.show_empty_state("Нажмите «Анализировать», чтобы найти моменты")
             self._set_status(f"Загружено: {os.path.basename(filepath)}", theme.SUCCESS)
         else:
@@ -229,7 +253,11 @@ class NeuroClipApp(ctk.CTk):
                 self.analysis_panel.hide_progress()
                 self._analyze_button.configure(state="normal", text="🔍 Анализировать")
                 self._upload_button.configure(state="normal")
-                if not events:
+                self._found_events = events
+                if events:
+                    self._montage_button.configure(state="normal")
+                    self._preview_button.configure(state="normal")
+                else:
                     self.analysis_panel.show_empty_state("Событий не найдено")
                 self._set_status(f"Анализ завершён — найдено моментов: {len(events)}", theme.SUCCESS)
             self.after(0, _finish)
@@ -257,6 +285,88 @@ class NeuroClipApp(ctk.CTk):
 
     def _on_event_selected(self, timestamp: float) -> None:
         self.video_player.seek_to_timestamp(timestamp)
+
+    def _on_build_montage(self) -> None:
+        if not self._found_events or not self.current_video_path:
+            self._set_status("Сначала запустите анализ и найдите моменты", theme.DANGER)
+            return
+
+        output_path = filedialog.asksaveasfilename(
+            title="Сохранить монтаж как",
+            defaultextension=".mp4",
+            filetypes=[("Видео MP4", "*.mp4")],
+            initialfile="neuroclip_montage.mp4",
+        )
+        if not output_path:
+            return
+
+        duration = self.video_player.get_duration()
+        segments = events_to_segments(self._found_events, video_duration=duration)
+
+        self._montage_button.configure(state="disabled", text="Собираю монтаж...")
+        self._preview_button.configure(state="disabled")
+        self._set_status(f"Собираю монтаж из {len(segments)} отрезков...", theme.ACCENT_CYAN)
+
+        def _worker() -> None:
+            try:
+                def on_progress(fraction: float) -> None:
+                    self.after(0, lambda: self._set_status(
+                        f"Рендер монтажа: {int(fraction * 100)}%", theme.ACCENT_CYAN))
+
+                build_montage(self.current_video_path, segments, output_path, on_progress=on_progress)
+
+                def _success() -> None:
+                    self._montage_button.configure(state="normal", text="🎬 Собрать монтаж")
+                    self._preview_button.configure(state="normal")
+                    self._set_status(f"✅ Монтаж сохранён: {os.path.basename(output_path)}", theme.SUCCESS)
+                self.after(0, _success)
+
+            except MontageError as exc:
+                def _fail() -> None:
+                    self._montage_button.configure(state="normal", text="🎬 Собрать монтаж")
+                    self._preview_button.configure(state="normal")
+                    self._set_status(f"❌ Ошибка монтажа: {exc}", theme.DANGER)
+                self.after(0, _fail)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_build_preview(self) -> None:
+        if not self._found_events or not self.current_video_path:
+            self._set_status("Сначала запустите анализ и найдите моменты", theme.DANGER)
+            return
+
+        output_path = filedialog.asksaveasfilename(
+            title="Сохранить превью как",
+            defaultextension=".png",
+            filetypes=[("Изображение PNG", "*.png")],
+            initialfile="neuroclip_preview.png",
+        )
+        if not output_path:
+            return
+
+        self._montage_button.configure(state="disabled")
+        self._preview_button.configure(state="disabled", text="Создаю превью...")
+        self._set_status("Создаю превью (первый запуск может скачивать модель rembg)...", theme.ACCENT_CYAN)
+
+        def _worker() -> None:
+            try:
+                _, background_removed = build_preview(self.current_video_path, self._found_events, output_path)
+
+                def _success() -> None:
+                    self._montage_button.configure(state="normal")
+                    self._preview_button.configure(state="normal", text="🖼 Создать превью")
+                    note = "" if background_removed else " (без удаления фона — rembg недоступен)"
+                    self._set_status(f"✅ Превью сохранено: {os.path.basename(output_path)}{note}", theme.SUCCESS)
+                self.after(0, _success)
+
+            except PreviewError as exc:
+                def _fail() -> None:
+                    self._montage_button.configure(state="normal")
+                    self._preview_button.configure(state="normal", text="🖼 Создать превью")
+                    self._set_status(f"❌ Ошибка превью: {exc}", theme.DANGER)
+                self.after(0, _fail)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _on_close(self) -> None:
         if self._pipeline is not None:

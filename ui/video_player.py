@@ -232,6 +232,10 @@ class VideoPlayer(ctk.CTkFrame):
         """Возвращает текущую позицию воспроизведения в секундах."""
         return self._current_frame_index / self._fps if self._fps else 0.0
 
+    def get_duration(self) -> float:
+        """Возвращает полную длительность загруженного видео в секундах."""
+        return self._frame_count / self._fps if self._fps else 0.0
+
     def seek_to_timestamp(self, seconds: float) -> None:
         """Перематывает на указанную секунду (используется панелью результатов анализа)."""
         if self._capture is None:
