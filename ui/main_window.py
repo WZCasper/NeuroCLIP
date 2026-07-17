@@ -287,8 +287,9 @@ class NeuroClipApp(ctk.CTk):
         self.video_player.seek_to_timestamp(timestamp)
 
     def _on_build_montage(self) -> None:
-        if not self._found_events or not self.current_video_path:
-            self._set_status("Сначала запустите анализ и найдите моменты", theme.DANGER)
+        selected_events = self.analysis_panel.get_selected_events()
+        if not selected_events or not self.current_video_path:
+            self._set_status("Отметьте хотя бы один момент галочкой", theme.DANGER)
             return
 
         output_path = filedialog.asksaveasfilename(
@@ -301,7 +302,7 @@ class NeuroClipApp(ctk.CTk):
             return
 
         duration = self.video_player.get_duration()
-        segments = events_to_segments(self._found_events, video_duration=duration)
+        segments = events_to_segments(selected_events, video_duration=duration)
 
         self._montage_button.configure(state="disabled", text="Собираю монтаж...")
         self._preview_button.configure(state="disabled")
@@ -331,8 +332,9 @@ class NeuroClipApp(ctk.CTk):
         threading.Thread(target=_worker, daemon=True).start()
 
     def _on_build_preview(self) -> None:
-        if not self._found_events or not self.current_video_path:
-            self._set_status("Сначала запустите анализ и найдите моменты", theme.DANGER)
+        selected_events = self.analysis_panel.get_selected_events()
+        if not selected_events or not self.current_video_path:
+            self._set_status("Отметьте хотя бы один момент галочкой", theme.DANGER)
             return
 
         output_path = filedialog.asksaveasfilename(
@@ -350,7 +352,7 @@ class NeuroClipApp(ctk.CTk):
 
         def _worker() -> None:
             try:
-                _, background_removed = build_preview(self.current_video_path, self._found_events, output_path)
+                _, background_removed = build_preview(self.current_video_path, selected_events, output_path)
 
                 def _success() -> None:
                     self._montage_button.configure(state="normal")
