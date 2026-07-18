@@ -62,10 +62,17 @@ def render_glow_text(text: str, size: int, color: str, glow_radius: int = 12,
     canvas_h = text_h + padding * 2
     origin = (padding - bbox[0], padding - bbox[1])
 
-    glow_layer = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow_layer)
-    glow_draw.text(origin, text, font=font, fill=color)
-    glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(glow_radius))
+    glow_mask = Image.new("L", (canvas_w, canvas_h), 0)
+    ImageDraw.Draw(glow_mask).text(origin, text, font=font, fill=255)
+    glow_mask = glow_mask.filter(ImageFilter.GaussianBlur(glow_radius))
+
+    # Размываем ТОЛЬКО альфа-маску (одноканальную), а не RGBA целиком: если
+    # размыть цвет вместе с альфой, прозрачные (RGB=0,0,0, A=0) пиксели по
+    # краям "тянут" итоговый цвет к чёрному даже там, где новая альфа мала —
+    # на тёмном фоне это незаметно, но на светлом видно как серый ореол
+    # вокруг текста. Раздельное размытие маски полностью исключает эффект.
+    glow_layer = Image.new("RGBA", (canvas_w, canvas_h), color)
+    glow_layer.putalpha(glow_mask)
 
     result = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     for _ in range(max(glow_boost, 1)):

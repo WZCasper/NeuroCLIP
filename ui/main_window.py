@@ -57,7 +57,30 @@ class NeuroClipApp(ctk.CTk):
     def _build_header(self) -> None:
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=24, pady=(20, 8))
-        Nameplate(header).pack(anchor="center")
+        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(2, weight=1)
+
+        Nameplate(header).grid(row=0, column=1)
+        self._build_theme_toggle(header).grid(row=0, column=2, sticky="e", padx=(0, 4))
+
+    def _build_theme_toggle(self, parent) -> ctk.CTkFrame:
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+
+        ctk.CTkLabel(container, text="☀️", font=ctk.CTkFont(size=15)).grid(row=0, column=0, padx=(0, 6))
+
+        self._theme_is_dark = ctk.BooleanVar(value=True)  # тёмная тема по умолчанию
+        self._theme_switch = ctk.CTkSwitch(
+            container, text="", variable=self._theme_is_dark, onvalue=True, offvalue=False,
+            command=self._on_theme_toggle, progress_color=theme.ACCENT_PURPLE,
+            button_color=theme.ACCENT_CYAN, button_hover_color=theme.ACCENT_MAGENTA,
+        )
+        self._theme_switch.grid(row=0, column=1)
+
+        ctk.CTkLabel(container, text="🌙", font=ctk.CTkFont(size=15)).grid(row=0, column=2, padx=(6, 0))
+        return container
+
+    def _on_theme_toggle(self) -> None:
+        ctk.set_appearance_mode("Dark" if self._theme_is_dark.get() else "Light")
 
     # ------------------------------------------------------------------
     def _build_sidebar(self) -> None:

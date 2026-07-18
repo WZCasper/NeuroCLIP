@@ -163,7 +163,7 @@ def build_preview(
     background_removed = False
     try:
         subject_rgba = remove_background(frame)
-        canvas = Image.new("RGB", frame.size, theme.hex_to_rgb(theme.BG_PRIMARY))
+        canvas = Image.new("RGB", frame.size, theme.hex_to_rgb(theme.resolve(theme.BG_PRIMARY)))
         canvas.paste(subject_rgba, (0, 0), subject_rgba)
         base_image = canvas
         background_removed = True
