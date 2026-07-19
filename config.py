@@ -11,7 +11,9 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from paths import BASE_DIR
+
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "").strip()
@@ -24,4 +26,4 @@ APP_VERSION = "0.1.0-alpha"
 
 # Путь к файлу модели MediaPipe FaceLandmarker (см. eye_contact_detector.py
 # для инструкции по скачиванию — библиотека не скачивает его сама).
-FACE_LANDMARKER_MODEL_PATH = "assets/models/face_landmarker.task"
+FACE_LANDMARKER_MODEL_PATH = os.path.join(BASE_DIR, "assets", "models", "face_landmarker.task")

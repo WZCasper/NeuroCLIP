@@ -12,3 +12,7 @@ runs/
 runs_neuroclip/
 *.pt
 *.task
+-e 
+# Артефакты сборки exe (PyInstaller) - пересобираются заново, не место в git
+build/
+dist/
