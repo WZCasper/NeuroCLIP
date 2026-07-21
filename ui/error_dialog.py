@@ -35,7 +35,7 @@ class ErrorReportDialog(ctk.CTkToplevel):
         self.grid_columnconfigure(0, weight=1)
 
         header = ctk.CTkLabel(
-            self, text="❌ Ошибка ИИ", text_color=theme.DANGER,
+            self, text="Ошибка ИИ", text_color=theme.DANGER,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=22, weight="bold"),
         )
         header.grid(row=0, column=0, sticky="w", padx=24, pady=(24, 8))
@@ -69,8 +69,8 @@ class ErrorReportDialog(ctk.CTkToplevel):
         has_frame = self._get_frame() is not None
         self._frame_status_label = ctk.CTkLabel(
             self,
-            text=("📎 К отчёту будет приложен текущий кадр видео." if has_frame
-                  else "⚠️ Видео не загружено — отчёт уйдёт без скриншота."),
+            text=("К отчёту будет приложен текущий кадр видео." if has_frame
+                  else "Видео не загружено — отчёт уйдёт без скриншота."),
             text_color=theme.TEXT_MUTED, font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=12),
             wraplength=400, justify="left",
         )
@@ -108,10 +108,10 @@ class ErrorReportDialog(ctk.CTkToplevel):
         )
 
     def _handle_success(self) -> None:
-        self._on_status("✅ Репорт отправлен в Telegram", theme.SUCCESS)
+        self._on_status("Репорт отправлен в Telegram", theme.SUCCESS)
         self.destroy()
 
     def _handle_error(self, message: str) -> None:
         self._send_button.configure(state="normal", text="Отправить в Telegram")
         self._error_label.configure(text=message)
-        self._on_status("❌ Не удалось отправить репорт", theme.DANGER)
+        self._on_status("Не удалось отправить репорт", theme.DANGER)

@@ -24,8 +24,8 @@ import numpy as np
 
 from modules.detectors.base import DetectionEvent
 
-_COOLDOWN_SECONDS = 2.0
-_MIN_ABSOLUTE_RMS = 0.02  # игнорировать "пики" в записи, которая в целом почти беззвучна
+_COOLDOWN_SECONDS = 4.5  # было 2.0
+_MIN_ABSOLUTE_RMS = 0.035  # было 0.02  # игнорировать "пики" в записи, которая в целом почти беззвучна
 
 
 class AudioPeakDetector:
@@ -44,7 +44,7 @@ class AudioPeakDetector:
         onset_times = librosa.onset.onset_detect(y=y, sr=sr, units="time")
 
         # sensitivity 0 -> нужен пик минимум в 8x громче фона; sensitivity 100 -> в 2.5x
-        threshold_ratio = 8.0 - (self.sensitivity / 100.0) * 5.5
+        threshold_ratio = 14.0 - (self.sensitivity / 100.0) * 9.0  # было 8.0-5.5 - реальный геймплей громче и "шумнее" синтетики
 
         events: List[DetectionEvent] = []
         last_event_time = -_COOLDOWN_SECONDS

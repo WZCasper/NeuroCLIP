@@ -27,7 +27,7 @@ import numpy as np
 
 from modules.detectors.base import DetectionEvent
 
-_COOLDOWN_SECONDS = 2.0
+_COOLDOWN_SECONDS = 4.5  # было 2.0 - на реальных записях срабатывал слишком часто
 _BASELINE_WINDOW = 5   # сколько прошлых кадров усредняем для baseline-яркости
 _WARM_HUE_MAX = 45      # верхняя граница "тёплого" оттенка (оранжевый/жёлтый) в шкале OpenCV 0-180
 
@@ -80,7 +80,7 @@ class ExplosionDetector:
 
         # sensitivity 0 -> нужен скачок минимум на 70 пунктов яркости (0-255)
         # sensitivity 100 -> достаточно скачка на 18 пунктов
-        threshold = 70.0 - (self.sensitivity / 100.0) * 52.0
+        threshold = 100.0 - (self.sensitivity / 100.0) * 65.0  # было 70.0-52.0 - реальные вспышки от стрельбы оказались чаще и слабее киношного взрыва
 
         if jump < threshold:
             return []
@@ -88,7 +88,7 @@ class ExplosionDetector:
             return []
 
         warm_ratio = self._warm_bright_ratio(frame_bgr)
-        if warm_ratio < 0.3:
+        if warm_ratio < 0.45:  # было 0.3 - строже отсекаем случайные яркие пятна
             return []  # яркая вспышка есть, но цвет не похож на взрыв/огонь/белую вспышку
 
         self._last_event_time = timestamp

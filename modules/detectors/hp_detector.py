@@ -32,7 +32,7 @@ _RED_RANGES = (
     (np.array([170, 70, 50]), np.array([180, 255, 255])),
 )
 
-_COOLDOWN_SECONDS = 3.0  # не повторять событие чаще, чем раз в столько секунд
+_COOLDOWN_SECONDS = 4.5  # было 3.0  # не повторять событие чаще, чем раз в столько секунд
 
 
 class LowHPDetector:

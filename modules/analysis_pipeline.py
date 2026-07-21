@@ -33,6 +33,20 @@ from state import AISettings
 
 TARGET_ANALYSIS_FPS = 6.0
 
+# Общий кулдаун МЕЖДУ ЛЮБЫМИ событиями, независимо от того, какой детектор их
+# нашёл. У каждого детектора уже есть свой кулдаун, но на реальных записях
+# (в отличие от чистой синтетики, на которой всё тестировалось) несколько
+# разных детекторов могут срабатывать почти одновременно, создавая ощущение
+# "что-то находится каждые пару секунд" — этот общий кулдаун служит жёсткой
+# страховкой сверху индивидуальных, а не заменяет их.
+GLOBAL_EVENT_COOLDOWN_SECONDS = 3.0
+
+# Если один источник даёт больше такой доли от всех найденных событий —
+# это подозрительно похоже на то, что порог для него слишком чувствителен
+# именно для этой записи, а не на честную статистику разных моментов.
+_DOMINANT_SOURCE_FRACTION = 0.6
+_DOMINANT_SOURCE_MIN_COUNT = 6
+
 
 class AnalysisPipeline:
     """Запускает набор детекторов Модуля 2 по видео в фоновом потоке."""
@@ -41,6 +55,20 @@ class AnalysisPipeline:
         self._settings = settings
         self._cancelled = False
         self._eye_contact_detector = None  # закрывается отдельно (держит ресурсы MediaPipe)
+        self._last_any_event_time = -GLOBAL_EVENT_COOLDOWN_SECONDS
+
+    def cancel(self) -> None:
+        self._cancelled = True
+
+    def _try_emit(self, event: DetectionEvent, all_events: List[DetectionEvent],
+                   on_event: Callable[[DetectionEvent], None]) -> None:
+        """Пропускает событие дальше, только если прошёл общий кулдаун с
+        предыдущего ЛЮБОГО события — см. GLOBAL_EVENT_COOLDOWN_SECONDS."""
+        if event.timestamp - self._last_any_event_time < GLOBAL_EVENT_COOLDOWN_SECONDS:
+            return
+        self._last_any_event_time = event.timestamp
+        all_events.append(event)
+        on_event(event)
 
     def cancel(self) -> None:
         self._cancelled = True
@@ -126,8 +154,7 @@ class AnalysisPipeline:
                         timestamp = frame_index / fps
                         for detector in detectors:
                             for event in detector.analyze_frame(frame, timestamp):
-                                all_events.append(event)
-                                on_event(event)
+                                self._try_emit(event, all_events, on_event)
                         # Видео — первые 70% общего прогресса, аудио-фазы — оставшиеся 30%
                         on_progress(min(frame_index / total_frames, 1.0) * 0.7)
 
@@ -140,6 +167,7 @@ class AnalysisPipeline:
                                        on_status, on_progress, enable_laughter)
 
                 all_events.sort(key=lambda e: e.timestamp)
+                self._warn_if_dominant_source(all_events, on_warning)
                 on_progress(1.0)
                 on_done(all_events)
             finally:
@@ -148,6 +176,34 @@ class AnalysisPipeline:
                     eye_contact_detector_ref.close()
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _warn_if_dominant_source(self, events: List[DetectionEvent],
+                                  on_warning: Callable[[str], None]) -> None:
+        """Если один источник даёт подавляющее большинство событий — это,
+        скорее всего, означает, что порог для него слишком чувствителен
+        именно для этой записи, а не честное распределение разных моментов.
+        Подсказывает, какой именно ползунок стоит понизить."""
+        if len(events) < _DOMINANT_SOURCE_MIN_COUNT:
+            return
+
+        counts: dict = {}
+        for event in events:
+            counts[event.source] = counts.get(event.source, 0) + 1
+
+        source_names = {
+            "low_hp": "«Низкое HP»", "killfeed": "«Килфид»",
+            "explosion": "«Взрывы / прицел»", "audio_peak": "«Громкие звуки»",
+            "eye_contact": "«Зрительный контакт»", "laughter": "распознавание смеха",
+        }
+
+        dominant_source, dominant_count = max(counts.items(), key=lambda kv: kv[1])
+        if dominant_count / len(events) >= _DOMINANT_SOURCE_FRACTION:
+            label = source_names.get(dominant_source, dominant_source)
+            on_warning(
+                f"Детектор {label} нашёл {dominant_count} из {len(events)} моментов — "
+                f"похоже, порог слишком чувствителен для этой записи. Попробуйте "
+                f"уменьшить соответствующий ползунок чувствительности и повторить анализ."
+            )
 
     def _run_audio_phase(
         self, video_path: str, all_events: List[DetectionEvent],
@@ -167,8 +223,7 @@ class AnalysisPipeline:
             on_status("Ищу резкие звуковые пики...")
             peak_detector = AudioPeakDetector(sensitivity=self._settings.audio_peak_sensitivity)
             for event in peak_detector.analyze_audio(wav_path):
-                all_events.append(event)
-                on_event(event)
+                self._try_emit(event, all_events, on_event)
             on_progress(0.85)
 
             if enable_laughter:
@@ -176,8 +231,7 @@ class AnalysisPipeline:
                 try:
                     laughter_detector = LaughterDetector(model_size="base")
                     for event in laughter_detector.analyze_audio(wav_path):
-                        all_events.append(event)
-                        on_event(event)
+                        self._try_emit(event, all_events, on_event)
                 except ImportError as exc:
                     on_warning(f"Детектор смеха отключён: {exc}")
                 except Exception as exc:  # модель Whisper не скачалась, ошибка транскрипции и т.п.

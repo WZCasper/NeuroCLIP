@@ -25,7 +25,7 @@ import numpy as np
 
 from modules.detectors.base import DetectionEvent
 
-_COOLDOWN_SECONDS = 1.0
+_COOLDOWN_SECONDS = 2.5  # было 1.0
 _DARK_THRESHOLD = 25          # яркость (0-255), ниже которой пиксель считается "чёрным"
 _MIN_DARK_RATIO = 0.45         # минимальная доля чёрных пикселей в кадре для маски прицела
 _MAX_DARK_RATIO = 0.90         # максимальная — иначе это, вероятно, просто чёрный экран

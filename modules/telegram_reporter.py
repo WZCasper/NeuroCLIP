@@ -32,17 +32,17 @@ def _build_caption(reporter: str, description: str, video_filename: Optional[str
                     video_timestamp: Optional[float]) -> str:
     """Формирует текст подписи с метаданными ошибки."""
     lines = [
-        "🔴 NEUROCLIP — ОШИБКА ИИ",
-        f"👤 Репортит: {reporter}",
-        f"🕒 Время: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "NEUROCLIP — ОШИБКА ИИ",
+        f"Репортит: {reporter}",
+        f"Время: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     ]
     if video_filename:
-        lines.append(f"🎬 Файл: {video_filename}")
+        lines.append(f"Файл: {video_filename}")
     if video_timestamp is not None:
         minutes, seconds = divmod(int(video_timestamp), 60)
         lines.append(f"⏱ Таймкод в видео: {minutes:02d}:{seconds:02d}")
     lines.append("")
-    lines.append(f"📝 Описание: {description.strip() if description.strip() else '— не указано —'}")
+    lines.append(f"Описание: {description.strip() if description.strip() else '— не указано —'}")
     return "\n".join(lines)
 
 
@@ -112,7 +112,7 @@ def send_error_report(
             if frame is not None:
                 _send_photo(frame, caption)
             else:
-                _send_text(caption + "\n\n⚠️ Видео не загружено — кадр не приложен.")
+                _send_text(caption + "\n\nВидео не загружено — кадр не приложен.")
 
             if on_success:
                 on_success()

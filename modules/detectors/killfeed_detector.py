@@ -55,7 +55,7 @@ class ROI:
 # Проверьте на своей записи через calibrate_roi.py и поправьте при необходимости.
 DEFAULT_KILLFEED_ROI = ROI(x1=0.62, y1=0.05, x2=0.99, y2=0.28)
 
-_COOLDOWN_SECONDS = 1.5
+_COOLDOWN_SECONDS = 3.0  # было 1.5
 
 
 class KillfeedDetector:
@@ -131,7 +131,7 @@ class KillfeedDetector:
         change_ratio = float(np.count_nonzero(changed_and_valid)) / valid_area
 
         # sensitivity 0 -> порог 4% изменившихся пикселей; sensitivity 100 -> порог 0.8%
-        threshold = 0.04 - (self.sensitivity / 100.0) * 0.032
+        threshold = 0.06 - (self.sensitivity / 100.0) * 0.04  # было 0.04-0.032 - реальный HUD "шевелится" (миникарта, счётчики) сильнее, чем синтетика
 
         if change_ratio < threshold:
             return []

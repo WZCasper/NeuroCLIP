@@ -22,11 +22,11 @@ from ui.video_player import VideoPlayer
 ctk.set_appearance_mode("Dark")
 
 _SLIDER_DEFINITIONS = [
-    ("low_hp_sensitivity", "🩸 Низкое HP"),
-    ("killfeed_sensitivity", "🎯 Килфид"),
-    ("explosion_sensitivity", "💥 Взрывы / прицел"),
-    ("audio_peak_sensitivity", "🔊 Громкие звуки"),
-    ("eye_contact_sensitivity", "👁 Зрительный контакт"),
+    ("low_hp_sensitivity", "Низкое HP"),
+    ("killfeed_sensitivity", "Килфид"),
+    ("explosion_sensitivity", "Взрывы / прицел"),
+    ("audio_peak_sensitivity", "Громкие звуки"),
+    ("eye_contact_sensitivity", "Зрительный контакт"),
 ]
 
 
@@ -66,7 +66,8 @@ class NeuroClipApp(ctk.CTk):
     def _build_theme_toggle(self, parent) -> ctk.CTkFrame:
         container = ctk.CTkFrame(parent, fg_color="transparent")
 
-        ctk.CTkLabel(container, text="☀️", font=ctk.CTkFont(size=15)).grid(row=0, column=0, padx=(0, 6))
+        ctk.CTkLabel(container, text="Светлая", text_color=theme.TEXT_MUTED,
+                     font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=12)).grid(row=0, column=0, padx=(0, 6))
 
         self._theme_is_dark = ctk.BooleanVar(value=True)  # тёмная тема по умолчанию
         self._theme_switch = ctk.CTkSwitch(
@@ -76,7 +77,8 @@ class NeuroClipApp(ctk.CTk):
         )
         self._theme_switch.grid(row=0, column=1)
 
-        ctk.CTkLabel(container, text="🌙", font=ctk.CTkFont(size=15)).grid(row=0, column=2, padx=(6, 0))
+        ctk.CTkLabel(container, text="Тёмная", text_color=theme.TEXT_MUTED,
+                     font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=12)).grid(row=0, column=2, padx=(6, 0))
         return container
 
     def _on_theme_toggle(self) -> None:
@@ -99,14 +101,14 @@ class NeuroClipApp(ctk.CTk):
         title.grid(row=0, column=0, sticky="w", padx=20, pady=(20, 12))
 
         self._upload_button = ctk.CTkButton(
-            sidebar, text="📂 Загрузить видео", command=self._on_upload_video,
+            sidebar, text="Загрузить видео", command=self._on_upload_video,
             fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_PURPLE, text_color="#050505",
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"), height=42,
         )
         self._upload_button.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
 
         self._analyze_button = ctk.CTkButton(
-            sidebar, text="🔍 Анализировать", command=self._on_analyze,
+            sidebar, text="Анализировать", command=self._on_analyze,
             fg_color="transparent", hover_color=theme.ACCENT_PURPLE, border_width=2,
             border_color=theme.ACCENT_CYAN, text_color=theme.ACCENT_CYAN,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
@@ -115,7 +117,7 @@ class NeuroClipApp(ctk.CTk):
         self._analyze_button.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 12))
 
         self._montage_button = ctk.CTkButton(
-            sidebar, text="🎬 Собрать монтаж", command=self._on_build_montage,
+            sidebar, text="Собрать монтаж", command=self._on_build_montage,
             fg_color=theme.ACCENT_MAGENTA, hover_color=theme.ACCENT_PURPLE, text_color="#050505",
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
             height=42, state="disabled",
@@ -123,7 +125,7 @@ class NeuroClipApp(ctk.CTk):
         self._montage_button.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 8))
 
         self._preview_button = ctk.CTkButton(
-            sidebar, text="🖼 Создать превью", command=self._on_build_preview,
+            sidebar, text="Создать превью", command=self._on_build_preview,
             fg_color="transparent", hover_color=theme.ACCENT_PURPLE, border_width=2,
             border_color=theme.ACCENT_MAGENTA, text_color=theme.ACCENT_MAGENTA,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
@@ -145,7 +147,7 @@ class NeuroClipApp(ctk.CTk):
 
         self._laughter_toggle_var = ctk.BooleanVar(value=False)
         self._laughter_toggle = ctk.CTkCheckBox(
-            sidebar, text="😂 Распознавать смех (Whisper, медленно)",
+            sidebar, text="Распознавать смех (Whisper, медленно)",
             variable=self._laughter_toggle_var,
             text_color=theme.TEXT_PRIMARY, font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=12),
             fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_PURPLE, border_color=theme.TEXT_MUTED,
@@ -157,7 +159,7 @@ class NeuroClipApp(ctk.CTk):
         row += 1
 
         self._error_button = ctk.CTkButton(
-            sidebar, text="❌ Ошибка ИИ", command=self._on_report_error,
+            sidebar, text="Ошибка ИИ", command=self._on_report_error,
             fg_color="transparent", hover_color=theme.DANGER, border_width=2,
             border_color=theme.DANGER, text_color=theme.DANGER,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"), height=42,
@@ -274,7 +276,7 @@ class NeuroClipApp(ctk.CTk):
         def on_done(events: list) -> None:
             def _finish() -> None:
                 self.analysis_panel.hide_progress()
-                self._analyze_button.configure(state="normal", text="🔍 Анализировать")
+                self._analyze_button.configure(state="normal", text="Анализировать")
                 self._upload_button.configure(state="normal")
                 self._found_events = events
                 if events:
@@ -288,13 +290,13 @@ class NeuroClipApp(ctk.CTk):
         def on_error(message: str) -> None:
             def _finish() -> None:
                 self.analysis_panel.hide_progress()
-                self._analyze_button.configure(state="normal", text="🔍 Анализировать")
+                self._analyze_button.configure(state="normal", text="Анализировать")
                 self._upload_button.configure(state="normal")
                 self._set_status(f"Ошибка анализа: {message}", theme.DANGER)
             self.after(0, _finish)
 
         def on_warning(message: str) -> None:
-            self.after(0, lambda: self._set_status(f"⚠️ {message}", theme.TEXT_MUTED))
+            self.after(0, lambda: self._set_status(f"{message}", theme.TEXT_MUTED))
 
         def on_status(message: str) -> None:
             self.after(0, lambda: self._set_status(message, theme.ACCENT_CYAN))
@@ -340,16 +342,16 @@ class NeuroClipApp(ctk.CTk):
                 build_montage(self.current_video_path, segments, output_path, on_progress=on_progress)
 
                 def _success() -> None:
-                    self._montage_button.configure(state="normal", text="🎬 Собрать монтаж")
+                    self._montage_button.configure(state="normal", text="Собрать монтаж")
                     self._preview_button.configure(state="normal")
-                    self._set_status(f"✅ Монтаж сохранён: {os.path.basename(output_path)}", theme.SUCCESS)
+                    self._set_status(f"Монтаж сохранён: {os.path.basename(output_path)}", theme.SUCCESS)
                 self.after(0, _success)
 
             except MontageError as exc:
                 def _fail() -> None:
-                    self._montage_button.configure(state="normal", text="🎬 Собрать монтаж")
+                    self._montage_button.configure(state="normal", text="Собрать монтаж")
                     self._preview_button.configure(state="normal")
-                    self._set_status(f"❌ Ошибка монтажа: {exc}", theme.DANGER)
+                    self._set_status(f"Ошибка монтажа: {exc}", theme.DANGER)
                 self.after(0, _fail)
 
         threading.Thread(target=_worker, daemon=True).start()
@@ -379,16 +381,16 @@ class NeuroClipApp(ctk.CTk):
 
                 def _success() -> None:
                     self._montage_button.configure(state="normal")
-                    self._preview_button.configure(state="normal", text="🖼 Создать превью")
+                    self._preview_button.configure(state="normal", text="Создать превью")
                     note = "" if background_removed else " (без удаления фона — rembg недоступен)"
-                    self._set_status(f"✅ Превью сохранено: {os.path.basename(output_path)}{note}", theme.SUCCESS)
+                    self._set_status(f"Превью сохранено: {os.path.basename(output_path)}{note}", theme.SUCCESS)
                 self.after(0, _success)
 
             except PreviewError as exc:
                 def _fail() -> None:
                     self._montage_button.configure(state="normal")
-                    self._preview_button.configure(state="normal", text="🖼 Создать превью")
-                    self._set_status(f"❌ Ошибка превью: {exc}", theme.DANGER)
+                    self._preview_button.configure(state="normal", text="Создать превью")
+                    self._set_status(f"Ошибка превью: {exc}", theme.DANGER)
                 self.after(0, _fail)
 
         threading.Thread(target=_worker, daemon=True).start()

@@ -40,9 +40,9 @@ from ui import theme
 
 DATASET_DIR = "dataset"
 CLASS_LABELS = {
-    "explosion": ("💥 Взрыв", theme.DANGER),
-    "scope": ("🎯 Прицел", theme.ACCENT_CYAN),
-    "background": ("🚫 Фон (не взрыв/прицел)", theme.TEXT_MUTED),
+    "explosion": ("Взрыв", theme.DANGER),
+    "scope": ("Прицел", theme.ACCENT_CYAN),
+    "background": ("Фон (не взрыв/прицел)", theme.TEXT_MUTED),
 }
 
 
@@ -108,19 +108,19 @@ class LabelToolApp(ctk.CTk):
             buttons.grid_columnconfigure(i, weight=1)
 
         ctk.CTkButton(
-            buttons, text="1 · 💥 Взрыв", command=lambda: self._classify("explosion"),
+            buttons, text="1 · Взрыв", command=lambda: self._classify("explosion"),
             fg_color=theme.DANGER, hover_color="#B32222", height=48,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
         ).grid(row=0, column=0, padx=6, sticky="ew")
 
         ctk.CTkButton(
-            buttons, text="2 · 🎯 Прицел", command=lambda: self._classify("scope"),
+            buttons, text="2 · Прицел", command=lambda: self._classify("scope"),
             fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_PURPLE, text_color="#050505",
             height=48, font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
         ).grid(row=0, column=1, padx=6, sticky="ew")
 
         ctk.CTkButton(
-            buttons, text="3 · 🚫 Удалить", command=lambda: self._classify(None),
+            buttons, text="3 · Удалить", command=lambda: self._classify(None),
             fg_color="transparent", border_width=2, border_color=theme.TEXT_MUTED,
             text_color=theme.TEXT_MUTED, height=48,
             font=ctk.CTkFont(family=theme.FONT_FAMILY_UI, size=14, weight="bold"),
@@ -150,7 +150,7 @@ class LabelToolApp(ctk.CTk):
         self._update_stats()
 
         if path is None:
-            self._image_label.configure(image=None, text="Все кандидаты размечены 🎉")
+            self._image_label.configure(image=None, text="Все кандидаты размечены ")
             self._filename_label.configure(text="")
             self._progress_label.configure(text=f"Готово: {len(self._staging_files)} из {len(self._staging_files)}")
             return
